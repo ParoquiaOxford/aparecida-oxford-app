@@ -13,13 +13,21 @@ npm run dev
 
 Por padrão, em desenvolvimento, a API é `http://localhost:4000/api`.
 
+Opcionalmente, você pode definir `docs/.env.development`:
+
+- `VITE_API_BASE_URL_DEV=http://localhost:4000/api`
+
 ## Produção (GitHub Pages)
 
 O frontend **não** conecta no MongoDB diretamente. Em produção ele precisa de um backend publicado (API Node/Express) que faz a conexão com o MongoDB.
 
 Defina a variável abaixo no build de produção:
 
-- `VITE_API_BASE_URL=https://SEU_BACKEND_PUBLICO/api`
+- `VITE_API_BASE_URL_PRD=https://SEU_BACKEND_PUBLICO/api`
+
+Compatibilidade (legado):
+
+- `VITE_API_BASE_URL` também é aceito como fallback.
 
 Exemplo:
 
@@ -27,6 +35,10 @@ Exemplo:
 - `https://api.seudominio.com/api`
 
 Sem essa variável, o login exibirá erro de API não configurada para produção.
+
+No GitHub Actions, configure em **Settings > Secrets and variables > Actions**:
+
+- `VITE_API_BASE_URL_PRD` (recomendado)
 
 ## Build
 

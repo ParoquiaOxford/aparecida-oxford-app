@@ -34,14 +34,20 @@ interface CreateSongPayload {
   lyrics: string
 }
 
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? ''
+const genericApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? ''
+const devApiBaseUrl = import.meta.env.VITE_API_BASE_URL_DEV?.trim() ?? ''
+const productionApiBaseUrl = import.meta.env.VITE_API_BASE_URL_PRD?.trim() ?? ''
 const isProductionBuild = import.meta.env.PROD
 
-const apiBaseUrl = configuredApiBaseUrl || (isProductionBuild ? '' : 'http://localhost:4000/api')
+const apiBaseUrl = isProductionBuild
+  ? productionApiBaseUrl || genericApiBaseUrl
+  : devApiBaseUrl || genericApiBaseUrl || 'http://localhost:4000/api'
 
 function ensureApiConfigured() {
   if (!apiBaseUrl) {
-    throw new Error('API não configurada para produção. Defina VITE_API_BASE_URL com a URL pública do backend.')
+    throw new Error(
+      'API não configurada para produção. Defina VITE_API_BASE_URL_PRD (ou VITE_API_BASE_URL) com a URL pública do backend.',
+    )
   }
 }
 
