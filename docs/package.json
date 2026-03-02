@@ -9,7 +9,7 @@
     "dev:full": "concurrently \"yarn dev:server\" \"yarn dev\"",
     "build": "tsc -b && vite build",
     "postbuild": "node ./scripts/create-404.mjs",
-    "predeploy": "npm run build",
+    "predeploy": "yarn build",
     "deploy": "gh-pages -d dist",
     "lint": "eslint .",
     "preview": "vite preview"
