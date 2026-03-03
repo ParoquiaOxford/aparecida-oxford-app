@@ -568,7 +568,7 @@ export const generateRepertoryPptx = async (songs, categoriesMap) => {
   pptx.title = 'Repertório de Missas'
 
   const titlePosition = resolveTitlePosition(openingStyle.posicao)
-  const baseAlign = resolveAlign(settings.textAlign ?? fonts.alinhamento)
+  const baseAlign = 'center'
   const contentBox = resolveTextAreaBox(pptx.layout, appliedMargins, textAreaConfig)
   const backgroundImageBox = resolveBackgroundImageBox(pptx.layout, backgroundImageConfig)
   const cornerLogoX = cmToInches(cornerLogoConfig?.x_cm)
