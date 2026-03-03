@@ -21,7 +21,7 @@
         "transformacao_texto": "maiusculas",
         "alinhamento": "esquerda",
         "estilo": {
-          "negrito": false,
+          "negrito": true,
           "italico": false,
           "sublinhado": false
         }
