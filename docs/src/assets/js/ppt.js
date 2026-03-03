@@ -75,14 +75,6 @@ const resolveTitlePosition = (position) => {
   return { x: 0.5, y: 0.4, w: 12.3, h: 0.8, align: 'left' }
 }
 
-const resolveSectionPosition = (position) => {
-  const value = String(position ?? '').toLowerCase()
-  if (value === 'inferior-direita') {
-    return { x: 8.6, y: 6.6, w: 4.3, h: 0.4, align: 'right' }
-  }
-  return { x: 0.5, y: 6.6, w: 12.3, h: 0.4, align: 'left' }
-}
-
 const normalizeText = (text, textCase) => {
   const raw = String(text ?? '')
   if (textCase === 'maiusculas') return raw.toUpperCase()
@@ -193,7 +185,6 @@ export const generateRepertoryPptx = async (songs, categoriesMap) => {
   const layoutMargins = layoutGlobal.margens ?? DEFAULT_CONFIG.layout_global.margens
   const styles = config.estilos_slides ?? DEFAULT_CONFIG.estilos_slides
   const openingStyle = styles.abertura ?? DEFAULT_CONFIG.estilos_slides.abertura
-  const sectionStyle = styles.secao_liturgica ?? DEFAULT_CONFIG.estilos_slides.secao_liturgica
   const contentStyle = styles.conteudo_leitura_canto ?? DEFAULT_CONFIG.estilos_slides.conteudo_leitura_canto
 
   const allowedFonts = Array.isArray(fonts.familias_permitidas)
@@ -220,7 +211,6 @@ export const generateRepertoryPptx = async (songs, categoriesMap) => {
   const appliedContentSize = Number(settings.fontSizeContent ?? contentStyle.tamanho_fonte ?? 28)
   const appliedMainColor = stripHex(settings.colorMain ?? colors.texto_principal, '#000000')
   const appliedHighlightColor = stripHex(settings.colorHighlight ?? colors.destaque_secao, '#5B9BD5')
-  const appliedSupportColor = stripHex(settings.colorSupport ?? sectionStyle.cor ?? colors.texto_suporte, '#757575')
   const appliedBackgroundColor = stripHex(settings.colorBackground ?? colors.fundo, '#FFFFFF')
   const appliedLineSpacing = Number(settings.lineSpacing ?? contentStyle.espacamento_linhas ?? 1.15)
   const appliedMargins = resolveMargins(settings.margins, layoutMargins)
@@ -236,7 +226,6 @@ export const generateRepertoryPptx = async (songs, categoriesMap) => {
 
   songs.forEach((song) => {
     const slide = pptx.addSlide()
-    const categoryName = categoriesMap.get(song.idCategory)?.name ?? 'Sem categoria'
     slide.background = { color: appliedBackgroundColor }
 
     if (backgroundImageData || backgroundImagePath) {
@@ -250,7 +239,6 @@ export const generateRepertoryPptx = async (songs, categoriesMap) => {
     }
 
     const titlePosition = resolveTitlePosition(openingStyle.posicao)
-    const sectionPosition = resolveSectionPosition(sectionStyle.alinhamento)
     const baseAlign = resolveAlign(settings.textAlign ?? fonts.alinhamento)
     const contentBox = resolveContentBox(pptx.layout, appliedMargins)
 
@@ -263,17 +251,6 @@ export const generateRepertoryPptx = async (songs, categoriesMap) => {
       fontFace: appliedFontFamily,
       fontSize: appliedTitleSize,
       align: titlePosition.align,
-    })
-
-    slide.addText(normalizeText(categoryName, textCase), {
-      ...sectionPosition,
-      fontFace: appliedFontFamily,
-      fontSize: Number(sectionStyle.tamanho_fonte ?? 18),
-      color: appliedSupportColor,
-      bold: appliedBold,
-      italic: Boolean(sectionStyle.italico || appliedItalic),
-      underline: appliedUnderline,
-      align: sectionPosition.align,
     })
 
     slide.addText(normalizeText(song.letter, textCase), {
