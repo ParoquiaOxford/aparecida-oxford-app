@@ -3,30 +3,37 @@ import cornerBrandLogo from '../img/brasao_aparecida_oxford_fb_G0.png'
 const PPT_SETTINGS_KEY = 'oxford.pptSettings'
 
 const DEFAULT_CONFIG = {
+  metadata: {
+    referencia_arquivo: '2712_SAB_Missa_SagradaFamilia_Matriz_1900.pptx',
+    referencia_template_path: './templates/2712_SAB_Missa_SagradaFamilia_Matriz_1900.pptx',
+    contexto: 'Litúrgico / Missa',
+    estilo: 'Minimalista de Alto Contraste',
+  },
   layout_global: {
     proporcao_tela: '16:9',
     cores: {
-      fundo: '#FFFFFF',
-      texto_principal: '#000000',
-      destaque_secao: '#5B9BD5',
+      fundo: '#000000',
+      texto_principal: '#FFFFFF',
+      destaque_secao: '#000000',
       texto_suporte: '#757575',
     },
     fontes: {
       familias_permitidas: ['Arial', 'Verdana'],
-      familia_principal: 'Arial',
+      familia_principal: 'Verdana',
+      caixa_texto: 'UPPERCASE',
       transformacao_texto: 'maiusculas',
-      alinhamento: 'esquerda',
+      alinhamento: 'centro',
       estilo: {
-        negrito: false,
+        negrito: true,
         italico: false,
         sublinhado: false,
       },
     },
     margens: {
-      top: 4,
-      bottom: 4,
-      left: 4,
-      right: 4,
+      top: 0.5,
+      bottom: 0.5,
+      left: 0.5,
+      right: 0.5,
     },
     imagem_fundo: {
       x_cm: 0,
@@ -38,11 +45,11 @@ const DEFAULT_CONFIG = {
       x_cm: 0,
       y_cm: 0.82,
       largura_cm: 33.87,
-      altura_cm: 18.23,
+      altura_cm: 19.05,
       rotacao_graus: 0,
-      escala_altura_percent: 102,
+      escala_altura_percent: 100,
       escala_largura_percent: 100,
-      alinhamento_vertical: 'middle',
+      alinhamento_vertical: 'centralizado',
       direcao_texto: 'horz',
       margens_texto_cm: {
         top: 0.13,
@@ -65,39 +72,55 @@ const DEFAULT_CONFIG = {
     },
     slide_separador: {
       habilitar: true,
-      fundo: '#FFFFFF',
+      fundo: '#000000',
       logo: {
-        x_cm: 12.1,
-        y_cm: 2.65,
-        largura_cm: 18.46,
-        altura_cm: 11.86,
-        escala_largura_percent: 114,
-        escala_altura_percent: 110,
+        x_cm: 10.24,
+        y_cm: 0.35,
+        largura_cm: 8.57,
+        altura_cm: 12.75,
+        escala_largura_percent: 144,
+        escala_altura_percent: 144,
         rotacao_graus: 0,
       },
     },
   },
   estilos_slides: {
     abertura: {
-      tamanho_fonte: 32,
+      tamanho_fonte: 16,
       negrito: true,
-      posicao: 'centro',
+      posicao: 'centralizado',
     },
     secao_liturgica: {
+      exemplo: ['ATO PENITENCIAL', 'HINO DE LOUVOR', 'OFERTÓRIO'],
       tamanho_fonte: 18,
       cor: '#757575',
       alinhamento: 'inferior-direita',
       italico: false,
     },
     conteudo_leitura_canto: {
-      tamanho_fonte: 28,
+      tamanho_fonte: 54,
       espacamento_linhas: 1.15,
       quebra_automatica: true,
       letras_maiusculas: true,
       misturar_estrofes_no_mesmo_slide: false,
     },
   },
+  elementos_especificos: {
+    marcadores_repeticao: {
+      estilo: '(BIS)',
+      posicao: 'final_da_linha',
+    },
+    identificadores_partes: {
+      fonte: 'Calibri',
+      tamanho: 14,
+      estilo: 'Cinza Subutilizado',
+    },
+  },
 }
+
+const cloneDefaultConfig = () => JSON.parse(JSON.stringify(DEFAULT_CONFIG))
+
+export const getDefaultPowerPointConfig = () => cloneDefaultConfig()
 
 const stripHex = (value, fallback) => {
   const color = String(value ?? fallback ?? '').replace('#', '').trim()
@@ -119,7 +142,7 @@ const resolveLayout = (ratio) => {
 
 const resolveTitlePosition = (position) => {
   const value = String(position ?? '').toLowerCase()
-  if (value === 'centro') {
+  if (value === 'centro' || value === 'centralizado') {
     return { x: 0.6, y: 0.5, w: 12.1, h: 0.9, align: 'center' }
   }
   return { x: 0.5, y: 0.4, w: 12.3, h: 0.8, align: 'left' }
@@ -474,23 +497,6 @@ const loadPowerPointSettings = () => {
   }
 }
 
-const loadPowerPointConfig = async () => {
-  const candidates = ['./data/ConfigPowePoint.json']
-
-  for (const filePath of candidates) {
-    try {
-      const response = await fetch(filePath)
-      if (!response.ok) continue
-      const parsed = await response.json()
-      return parsed?.ConfigPowerPoint ?? DEFAULT_CONFIG
-    } catch {
-      continue
-    }
-  }
-
-  return DEFAULT_CONFIG
-}
-
 const buildFileName = () => {
   const now = new Date()
   const weekDays = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB']
@@ -507,7 +513,7 @@ const buildFileName = () => {
 }
 
 export const generateRepertoryPptx = async (songs, categoriesMap) => {
-  const config = await loadPowerPointConfig()
+  const config = getDefaultPowerPointConfig()
   const settings = loadPowerPointSettings() ?? {}
   const metadata = config.metadata ?? {}
   const layoutGlobal = config.layout_global ?? DEFAULT_CONFIG.layout_global

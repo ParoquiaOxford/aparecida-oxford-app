@@ -9,7 +9,7 @@ import {
   savePptSettings,
   clearPptSettings,
 } from './data.js'
-import { generateRepertoryPptx } from './ppt.js'
+import { generateRepertoryPptx, getDefaultPowerPointConfig } from './ppt.js'
 
 const PAGE = document.body.dataset.page
 const THEME_KEY = 'oxford.theme'
@@ -99,18 +99,7 @@ const showFormFeedback = (element, message = '', type = 'success') => {
 }
 
 const loadBasePowerPointConfig = async () => {
-  const candidates = ['./data/ConfigPowePoint.json']
-  for (const candidate of candidates) {
-    try {
-      const response = await fetch(candidate)
-      if (!response.ok) continue
-      const parsed = await response.json()
-      if (parsed?.ConfigPowerPoint) return parsed.ConfigPowerPoint
-    } catch {
-      continue
-    }
-  }
-  return null
+  return getDefaultPowerPointConfig()
 }
 
 const fileToDataUrl = (file) =>
