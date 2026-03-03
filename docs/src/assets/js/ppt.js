@@ -111,6 +111,160 @@ const resolveMargins = (settingsMargins, configMargins) => {
 
 const pointsToInches = (value) => Number(value || 0) / 72
 
+const clampNumber = (value, fallback, min, max) => {
+  const numeric = Number(value)
+  if (!Number.isFinite(numeric)) return fallback
+  return Math.min(max, Math.max(min, numeric))
+}
+
+const normalizeLineBreaks = (text) => String(text ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim()
+
+const splitMusicIntoBlocks = (text) => {
+  const normalized = normalizeLineBreaks(text)
+  if (!normalized) return []
+
+  return normalized
+    .split(/\n\s*\n/g)
+    .map((block) => block.trim())
+    .filter(Boolean)
+}
+
+const estimateCharWidthFactor = ({ fontFamily, bold, italic }) => {
+  const family = String(fontFamily ?? '').toLowerCase()
+  let factor = family.includes('verdana') ? 0.58 : 0.55
+  if (bold) factor += 0.03
+  if (italic) factor += 0.01
+  return factor
+}
+
+const estimateMaxCharsPerLine = ({ widthInches, fontSize, fontFamily, bold, italic }) => {
+  const widthPoints = Math.max(1, Number(widthInches) * 72)
+  const safeFontSize = clampNumber(fontSize, 28, 8, 96)
+  const charWidth = safeFontSize * estimateCharWidthFactor({ fontFamily, bold, italic })
+  return Math.max(8, Math.floor(widthPoints / Math.max(1, charWidth)))
+}
+
+const wrapTextToLines = (text, metrics) => {
+  const rawText = String(text ?? '')
+  if (!rawText.trim()) return []
+
+  const maxChars = estimateMaxCharsPerLine(metrics)
+  const lines = []
+
+  rawText.split('\n').forEach((sourceLine) => {
+    const line = sourceLine.trim()
+    if (!line) {
+      lines.push('')
+      return
+    }
+
+    let current = ''
+    line.split(/\s+/).forEach((word) => {
+      const candidate = current ? `${current} ${word}` : word
+      if (candidate.length <= maxChars) {
+        current = candidate
+        return
+      }
+
+      if (current) {
+        lines.push(current)
+      }
+
+      if (word.length <= maxChars) {
+        current = word
+        return
+      }
+
+      let start = 0
+      while (start < word.length) {
+        const chunk = word.slice(start, start + maxChars)
+        if (chunk.length === maxChars) {
+          lines.push(chunk)
+        } else {
+          current = chunk
+        }
+        start += maxChars
+      }
+
+      if (word.length % maxChars === 0) {
+        current = ''
+      }
+    })
+
+    if (current) {
+      lines.push(current)
+    }
+  })
+
+  return lines
+}
+
+const resolveMaxLinesPerSlide = ({ heightInches, fontSize, lineSpacing }) => {
+  const usableHeightPoints = Math.max(72, Number(heightInches) * 72)
+  const safeFontSize = clampNumber(fontSize, 28, 8, 96)
+  const safeLineSpacing = clampNumber(lineSpacing, 1.15, 1, 3)
+  const lineHeightPoints = safeFontSize * safeLineSpacing * 1.2
+  return Math.max(4, Math.floor(usableHeightPoints / Math.max(1, lineHeightPoints)))
+}
+
+const paginateLines = (lines, maxLinesPerSlide) => {
+  const safeMax = Math.max(1, Number(maxLinesPerSlide) || 1)
+  const pages = []
+  let current = []
+
+  lines.forEach((line) => {
+    if (!line && current.length === 0) return
+
+    if (current.length >= safeMax) {
+      pages.push(current)
+      current = []
+    }
+
+    current.push(line)
+  })
+
+  if (current.length) {
+    pages.push(current)
+  }
+
+  return pages
+}
+
+const buildSongPages = ({ lyric, contentBox, fontSize, lineSpacing, fontFamily, bold, italic, allowAutoWrap }) => {
+  const blocks = splitMusicIntoBlocks(lyric)
+  if (!blocks.length) return []
+
+  const lines = []
+  blocks.forEach((block, blockIndex) => {
+    const wrappedBlock = allowAutoWrap
+      ? wrapTextToLines(block, {
+          widthInches: contentBox.w,
+          fontSize,
+          fontFamily,
+          bold,
+          italic,
+        })
+      : block.split('\n').map((line) => line.trimEnd())
+
+    wrappedBlock.forEach((line) => lines.push(line))
+
+    if (blockIndex < blocks.length - 1) {
+      lines.push('')
+    }
+  })
+
+  while (lines.length && !lines[0]) lines.shift()
+  while (lines.length && !lines[lines.length - 1]) lines.pop()
+
+  const maxLines = resolveMaxLinesPerSlide({
+    heightInches: contentBox.h,
+    fontSize,
+    lineSpacing,
+  })
+
+  return paginateLines(lines, maxLines).map((pageLines) => pageLines.join('\n').trim())
+}
+
 const resolveContentBox = (layout, margins) => {
   const slideWidth = layout === 'LAYOUT_WIDE' ? 13.333 : 10
   const base = {
@@ -224,10 +378,12 @@ export const generateRepertoryPptx = async (songs, categoriesMap) => {
   pptx.subject = 'Repertório de Missas'
   pptx.title = 'Repertório de Missas'
 
-  songs.forEach((song) => {
-    const slide = pptx.addSlide()
-    slide.background = { color: appliedBackgroundColor }
+  const titlePosition = resolveTitlePosition(openingStyle.posicao)
+  const baseAlign = resolveAlign(settings.textAlign ?? fonts.alinhamento)
+  const contentBox = resolveContentBox(pptx.layout, appliedMargins)
 
+  const applySlideBackground = (slide) => {
+    slide.background = { color: appliedBackgroundColor }
     if (backgroundImageData || backgroundImagePath) {
       slide.addImage({
         ...(backgroundImageData ? { data: backgroundImageData } : { path: backgroundImagePath }),
@@ -237,36 +393,58 @@ export const generateRepertoryPptx = async (songs, categoriesMap) => {
         h: 7.5,
       })
     }
+  }
 
-    const titlePosition = resolveTitlePosition(openingStyle.posicao)
-    const baseAlign = resolveAlign(settings.textAlign ?? fonts.alinhamento)
-    const contentBox = resolveContentBox(pptx.layout, appliedMargins)
-
-    slide.addText(normalizeText(song.title, textCase), {
-      ...titlePosition,
-      bold: Boolean(openingStyle.negrito || appliedBold),
-      italic: appliedItalic,
-      underline: appliedUnderline,
-      color: appliedHighlightColor,
-      fontFace: appliedFontFamily,
-      fontSize: appliedTitleSize,
-      align: titlePosition.align,
-    })
-
-    slide.addText(normalizeText(song.letter, textCase), {
-      ...contentBox,
-      fontFace: appliedFontFamily,
+  songs.forEach((song, songIndex) => {
+    const pages = buildSongPages({
+      lyric: normalizeText(song.letter, textCase),
+      contentBox,
       fontSize: appliedContentSize,
-      color: appliedMainColor,
+      lineSpacing: appliedLineSpacing,
+      fontFamily: appliedFontFamily,
       bold: appliedBold,
       italic: appliedItalic,
-      underline: appliedUnderline,
-      valign: 'top',
-      align: baseAlign,
-      breakLine: Boolean(contentStyle.quebra_automatica),
-      lineSpacingMultiple: appliedLineSpacing,
-      margin: 0,
+      allowAutoWrap: Boolean(contentStyle.quebra_automatica),
     })
+
+    const fallbackPages = pages.length ? pages : [normalizeText(song.letter, textCase)]
+
+    fallbackPages.forEach((pageText, pageIndex) => {
+      const slide = pptx.addSlide()
+      applySlideBackground(slide)
+
+      const continuationLabel = pageIndex > 0 ? ' (cont.)' : ''
+      slide.addText(normalizeText(`${song.title}${continuationLabel}`, textCase), {
+        ...titlePosition,
+        bold: Boolean(openingStyle.negrito || appliedBold),
+        italic: appliedItalic,
+        underline: appliedUnderline,
+        color: appliedHighlightColor,
+        fontFace: appliedFontFamily,
+        fontSize: appliedTitleSize,
+        align: titlePosition.align,
+      })
+
+      slide.addText(pageText, {
+        ...contentBox,
+        fontFace: appliedFontFamily,
+        fontSize: appliedContentSize,
+        color: appliedMainColor,
+        bold: appliedBold,
+        italic: appliedItalic,
+        underline: appliedUnderline,
+        valign: 'top',
+        align: baseAlign,
+        breakLine: Boolean(contentStyle.quebra_automatica),
+        lineSpacingMultiple: appliedLineSpacing,
+        margin: 0,
+      })
+    })
+
+    if (songIndex < songs.length - 1) {
+      const separatorSlide = pptx.addSlide()
+      applySlideBackground(separatorSlide)
+    }
   })
 
   await pptx.writeFile({ fileName: buildFileName() })
